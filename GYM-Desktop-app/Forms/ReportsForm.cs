@@ -76,13 +76,23 @@ namespace GYM_Desktop_app.Forms
                 _reportData          = DatabaseHelper.GetPaymentsReport();
                 dgvReport.DataSource = _reportData;
 
+                // Make the Plan column clear and well-placed
+                if (dgvReport.Columns.Contains("PaymentID"))  dgvReport.Columns["PaymentID"].Visible = false;
+                if (dgvReport.Columns.Contains("MemberName")) dgvReport.Columns["MemberName"].HeaderText = "Member";
+                if (dgvReport.Columns.Contains("Plan"))
+                {
+                    dgvReport.Columns["Plan"].HeaderText   = "Plan / Coach";
+                    dgvReport.Columns["Plan"].DisplayIndex = 1;
+                }
+                if (dgvReport.Columns.Contains("Amount")) dgvReport.Columns["Amount"].HeaderText = "Amount (EGP)";
+
                 int     totalCount  = _reportData.Rows.Count;
                 decimal totalAmount = 0;
                 foreach (DataRow row in _reportData.Rows)
                     totalAmount += Convert.ToDecimal(row["Amount"]);
 
                 lblTotalPayments.Text = $"Total Payments: {totalCount}";
-                lblTotalAmount.Text   = $"Total Amount: ${totalAmount:N2}";
+                lblTotalAmount.Text   = $"Total Amount: {totalAmount:N0} EGP";
             }
             catch (Exception ex)
             {
