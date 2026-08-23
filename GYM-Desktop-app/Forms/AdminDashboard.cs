@@ -113,9 +113,9 @@ namespace GYM_Desktop_app.Forms
             s.MarkerColor        = Theme.Primary;
             s.MarkerBorderColor  = Color.White;
             s.MarkerBorderWidth  = 2;
-            s.ToolTip            = "#VALX\n$#VAL{N0}";
+            s.ToolTip            = "#VALX\n#VAL{N0} EGP";
             chartRevenue.Series.Add(s);
-            chartRevenue.ChartAreas["Main"].AxisY.LabelStyle.Format = "${0:N0}";
+            chartRevenue.ChartAreas["Main"].AxisY.LabelStyle.Format = "{0:N0} EGP";
         }
 
         private void ConfigureGrowthChart()
@@ -344,7 +344,7 @@ namespace GYM_Desktop_app.Forms
                 var st = DatabaseHelper.GetDashboardStats();
                 lblCardMembersVal.Text = st.totalMembers.ToString();
                 lblCardActiveVal.Text  = st.activeMembers.ToString();
-                lblCardRevenueVal.Text = "$" + st.monthRevenue.ToString("N0");
+                lblCardRevenueVal.Text = st.monthRevenue.ToString("N0") + " EGP";
                 lblCardNewVal.Text     = st.weekSessions.ToString();
             }
             catch { }

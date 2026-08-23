@@ -172,9 +172,8 @@ namespace GYM_Desktop_app.Forms
             this.cmbMethod.Font = new System.Drawing.Font("Segoe UI", 10F);
             this.cmbMethod.Items.AddRange(new object[] {
             "Cash",
-            "Credit Card",
-            "Debit Card",
-            "Bank Transfer"});
+            "Vodafone Cash",
+            "InstaPay"});
             this.cmbMethod.Location = new System.Drawing.Point(20, 258);
             this.cmbMethod.Name = "cmbMethod";
             this.cmbMethod.Size = new System.Drawing.Size(510, 31);

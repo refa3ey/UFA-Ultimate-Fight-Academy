@@ -67,7 +67,7 @@ namespace GYM_Desktop_app.Helpers
                         }
                         string colName = dt.Columns[c].ColumnName;
                         if (colName == "Amount")
-                            cell.Style.Numberformat.Format = "$#,##0.00";
+                            cell.Style.Numberformat.Format = "#,##0\" EGP\"";
                         else if (colName.Contains("Date"))
                             cell.Style.Numberformat.Format = "mmm dd, yyyy";
                     }
@@ -82,7 +82,7 @@ namespace GYM_Desktop_app.Helpers
                     ws.Cells[totalRow, amtCol - 1].Style.Font.Bold = true;
                     ws.Cells[totalRow, amtCol].Formula =
                         $"SUM({ws.Cells[HR + 1, amtCol].Address}:{ws.Cells[HR + dt.Rows.Count, amtCol].Address})";
-                    ws.Cells[totalRow, amtCol].Style.Numberformat.Format = "$#,##0.00";
+                    ws.Cells[totalRow, amtCol].Style.Numberformat.Format = "#,##0\" EGP\"";
                     ws.Cells[totalRow, amtCol].Style.Font.Bold = true;
                     ws.Cells[totalRow, amtCol].Style.Fill.PatternType = ExcelFillStyle.Solid;
                     ws.Cells[totalRow, amtCol].Style.Fill.BackgroundColor.SetColor(Color.FromArgb(220, 250, 220));
@@ -246,7 +246,7 @@ namespace GYM_Desktop_app.Helpers
             gfx.DrawRectangle(new XSolidBrush(XColor.FromArgb(245, 247, 250)), 50, rowY, tableW, 38);
             gfx.DrawString("Membership Payment", fntReg, brushDark,
                 new XRect(65, rowY, tableW - 120, 38), XStringFormats.CenterLeft);
-            gfx.DrawString(payment.Amount.ToString("$#,##0.00"), fntReg, brushDark,
+            gfx.DrawString(payment.Amount.ToString("#,##0\" EGP\""), fntReg, brushDark,
                 new XRect(50, rowY, tableW - 10, 38), XStringFormats.CenterRight);
 
             // Total
@@ -255,7 +255,7 @@ namespace GYM_Desktop_app.Helpers
             totalY += 10;
             gfx.DrawString("TOTAL", fntBold, brushTeal,
                 new XRect(50, totalY, tableW - 100, 28), XStringFormats.CenterRight);
-            gfx.DrawString(payment.Amount.ToString("$#,##0.00"), fntMono, brushTeal,
+            gfx.DrawString(payment.Amount.ToString("#,##0\" EGP\""), fntMono, brushTeal,
                 new XRect(50, totalY, tableW - 10, 28), XStringFormats.CenterRight);
 
             // ---- Footer ----
