@@ -15,45 +15,53 @@ namespace GYM_Desktop_app.Forms
 
         private bool _dragging;
         private Point _dragStart;
-
-        private Label lblPlanInfo;
+        private ComboBox cmbPlan;   // pick the plan being paid for (replaces the amount field)
 
         public PaymentForm()
         {
             InitializeComponent();
-            SetupPlanInfo();
+            SetupPlanCombo();
             LoadMembers();
             if (cmbMethod.Items.Count > 0)
                 cmbMethod.SelectedIndex = 0;
-            UpdatePlanInfo();
+            SyncPlanToMember();
         }
 
-        // Shows which coach + plan the selected member is paying for, and prefills the amount
-        private void SetupPlanInfo()
+        // Replace the amount box with a Plan dropdown; the amount = the plan's price.
+        private void SetupPlanCombo()
         {
-            lblPlanInfo = new Label
+            lblAmount.Text    = "PLAN";
+            numAmount.Visible = false;
+
+            cmbPlan = new ComboBox
             {
-                Font      = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(242, 101, 34),
-                Location  = new Point(20, 73),
-                Size      = new Size(510, 16),
-                Text      = ""
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font          = new Font("Segoe UI", 10F),
+                Location      = numAmount.Location,
+                Size          = numAmount.Size
             };
-            panelCard.Controls.Add(lblPlanInfo);
-            lblPlanInfo.BringToFront();
-            cmbMember.SelectedIndexChanged += (s, e) => UpdatePlanInfo();
+            panelCard.Controls.Add(cmbPlan);
+            cmbPlan.BringToFront();
+
+            try
+            {
+                cmbPlan.DataSource    = null;
+                cmbPlan.DisplayMember = "Label";   // "Coach - Plan (N sessions, price EGP)"
+                cmbPlan.ValueMember   = "PlanID";
+                cmbPlan.DataSource    = DatabaseHelper.GetAllPlans();
+            }
+            catch (Exception ex) { MessageBox.Show("Error loading plans: " + ex.Message); }
+
+            cmbMember.SelectedIndexChanged += (s, e) => SyncPlanToMember();
         }
 
-        private void UpdatePlanInfo()
+        // When a member is chosen, preselect the plan they are currently on.
+        private void SyncPlanToMember()
         {
             var m = cmbMember.SelectedItem as Member;
-            if (m == null) { if (lblPlanInfo != null) lblPlanInfo.Text = ""; return; }
-            decimal price = 0m;
-            try { var pl = DatabaseHelper.GetPlanById(m.PlanID); if (pl != null) price = pl.Price; } catch { }
-            string coach = string.IsNullOrEmpty(m.CoachName) ? "-" : m.CoachName;
-            string plan  = string.IsNullOrEmpty(m.PlanName) ? "-" : m.PlanName;
-            lblPlanInfo.Text = $"Coach: {coach}    •    Plan: {plan}    •    {price:0} EGP";
-            if (price > 0) numAmount.Value = Math.Min(price, numAmount.Maximum);
+            if (m == null || cmbPlan == null || cmbPlan.Items.Count == 0) return;
+            if (m.PlanID > 0)
+                try { cmbPlan.SelectedValue = m.PlanID; } catch { }
         }
 
         private void PaymentForm_Load(object sender, EventArgs e)
@@ -81,10 +89,10 @@ namespace GYM_Desktop_app.Forms
         {
             try
             {
-                var members          = DatabaseHelper.GetAllMembers();
-                cmbMember.DataSource    = members;
+                cmbMember.DataSource    = null;
                 cmbMember.DisplayMember = "Name";
                 cmbMember.ValueMember   = "MemberID";
+                cmbMember.DataSource    = DatabaseHelper.GetAllMembers();
             }
             catch (Exception ex)
             {
@@ -99,13 +107,12 @@ namespace GYM_Desktop_app.Forms
                 MessageBox.Show("Please select a member.");
                 return;
             }
-
-            if (numAmount.Value <= 0)
+            var selectedPlan = cmbPlan?.SelectedItem as MembershipPlan;
+            if (selectedPlan == null)
             {
-                MessageBox.Show("Amount must be greater than zero.");
+                MessageBox.Show("Please select a plan.");
                 return;
             }
-
             if (cmbMethod.SelectedItem == null)
             {
                 MessageBox.Show("Please select a payment method.");
@@ -117,19 +124,19 @@ namespace GYM_Desktop_app.Forms
                 var payment = new Payment
                 {
                     MemberID = Convert.ToInt32(cmbMember.SelectedValue),
-                    Amount   = numAmount.Value,
+                    Amount   = selectedPlan.Price,
                     Date     = dtpDate.Value,
                     Method   = cmbMethod.SelectedItem.ToString()
                 };
 
                 var selectedMember = (Member)cmbMember.SelectedItem;
                 DatabaseHelper.AddPayment(payment);
+                dtpDate.Value = DateTime.Now;
 
-                numAmount.Value = 0;
-                dtpDate.Value   = DateTime.Now;
-
-                var result = MessageBox.Show("Payment recorded successfully!\n\nPrint a receipt now?",
-                    "Success", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                var result = MessageBox.Show(
+                    $"{selectedMember.Name} paid {selectedPlan.Price:0} EGP for " +
+                    $"{selectedPlan.PlanName} (Coach {selectedPlan.CoachName}).\n\nPrint a receipt now?",
+                    "Payment Recorded", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
                 if (result == DialogResult.Yes)
                 {
                     string pdfPath = ExportDialog.PromptForPDFPath(
@@ -138,7 +145,7 @@ namespace GYM_Desktop_app.Forms
                     {
                         try
                         {
-                            string planLine = $"{(selectedMember.PlanName ?? "-")}  —  Coach {(selectedMember.CoachName ?? "-")}";
+                            string planLine = $"{selectedPlan.PlanName}  —  Coach {selectedPlan.CoachName}";
                             ExportHelper.ExportPaymentReceiptToPDF(pdfPath, payment, selectedMember.Name, planLine);
                             ExportHelper.OpenFile(pdfPath);
                         }
