@@ -116,7 +116,7 @@ namespace GYM_Desktop_app.Forms
             this.lblAmount.Name = "lblAmount";
             this.lblAmount.Size = new System.Drawing.Size(510, 17);
             this.lblAmount.TabIndex = 2;
-            this.lblAmount.Text = "AMOUNT ($)";
+            this.lblAmount.Text = "AMOUNT (EGP)";
             // 
             // numAmount
             // 

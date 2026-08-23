@@ -16,12 +16,44 @@ namespace GYM_Desktop_app.Forms
         private bool _dragging;
         private Point _dragStart;
 
+        private Label lblPlanInfo;
+
         public PaymentForm()
         {
             InitializeComponent();
+            SetupPlanInfo();
             LoadMembers();
             if (cmbMethod.Items.Count > 0)
                 cmbMethod.SelectedIndex = 0;
+            UpdatePlanInfo();
+        }
+
+        // Shows which coach + plan the selected member is paying for, and prefills the amount
+        private void SetupPlanInfo()
+        {
+            lblPlanInfo = new Label
+            {
+                Font      = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(242, 101, 34),
+                Location  = new Point(20, 73),
+                Size      = new Size(510, 16),
+                Text      = ""
+            };
+            panelCard.Controls.Add(lblPlanInfo);
+            lblPlanInfo.BringToFront();
+            cmbMember.SelectedIndexChanged += (s, e) => UpdatePlanInfo();
+        }
+
+        private void UpdatePlanInfo()
+        {
+            var m = cmbMember.SelectedItem as Member;
+            if (m == null) { if (lblPlanInfo != null) lblPlanInfo.Text = ""; return; }
+            decimal price = 0m;
+            try { var pl = DatabaseHelper.GetPlanById(m.PlanID); if (pl != null) price = pl.Price; } catch { }
+            string coach = string.IsNullOrEmpty(m.CoachName) ? "-" : m.CoachName;
+            string plan  = string.IsNullOrEmpty(m.PlanName) ? "-" : m.PlanName;
+            lblPlanInfo.Text = $"Coach: {coach}    •    Plan: {plan}    •    {price:0} EGP";
+            if (price > 0) numAmount.Value = Math.Min(price, numAmount.Maximum);
         }
 
         private void PaymentForm_Load(object sender, EventArgs e)
@@ -106,9 +138,8 @@ namespace GYM_Desktop_app.Forms
                     {
                         try
                         {
-                            string planName = "Member";
-                            try { planName = DatabaseHelper.GetPlanNameByID(selectedMember.PlanID); } catch { }
-                            ExportHelper.ExportPaymentReceiptToPDF(pdfPath, payment, selectedMember.Name, planName);
+                            string planLine = $"{(selectedMember.PlanName ?? "-")}  —  Coach {(selectedMember.CoachName ?? "-")}";
+                            ExportHelper.ExportPaymentReceiptToPDF(pdfPath, payment, selectedMember.Name, planLine);
                             ExportHelper.OpenFile(pdfPath);
                         }
                         catch (Exception pdfEx)

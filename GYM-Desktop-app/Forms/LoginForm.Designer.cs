@@ -202,8 +202,6 @@ namespace GYM_Desktop_app.Forms
             this.Controls.Add(this.lblPassIcon);
             this.Controls.Add(this.txtPassword);
             this.Controls.Add(this.btnLogin);
-            this.Controls.Add(this.lblRegisterPrompt);
-            this.Controls.Add(this.btnRegister);
             this.Controls.Add(this.btnClose);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.MaximizeBox = false;
