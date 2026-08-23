@@ -124,6 +124,7 @@ namespace GYM_Desktop_app.Forms
                 var payment = new Payment
                 {
                     MemberID = Convert.ToInt32(cmbMember.SelectedValue),
+                    PlanID   = selectedPlan.PlanID,
                     Amount   = selectedPlan.Price,
                     Date     = dtpDate.Value,
                     Method   = cmbMethod.SelectedItem.ToString()
