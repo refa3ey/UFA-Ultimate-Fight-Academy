@@ -216,7 +216,7 @@ namespace GYM_Desktop_app.Forms
             this.panelInputs.FillColor = System.Drawing.Color.White;
             this.panelInputs.Location = new System.Drawing.Point(10, 450);
             this.panelInputs.Name = "panelInputs";
-            this.panelInputs.Size = new System.Drawing.Size(1080, 220);
+            this.panelInputs.Size = new System.Drawing.Size(1080, 285);
             this.panelInputs.TabIndex = 3;
             //
             // lblName
@@ -434,7 +434,7 @@ namespace GYM_Desktop_app.Forms
             // ManageMembers
             //
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(245)))), ((int)(((byte)(247)))), ((int)(((byte)(250)))));
-            this.ClientSize = new System.Drawing.Size(1100, 682);
+            this.ClientSize = new System.Drawing.Size(1100, 745);
             this.Controls.Add(this.panelTopBar);
             this.Controls.Add(this.panelSearch);
             this.Controls.Add(this.dgvMembers);

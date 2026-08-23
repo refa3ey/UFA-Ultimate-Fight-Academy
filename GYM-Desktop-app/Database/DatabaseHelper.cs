@@ -671,11 +671,11 @@ namespace GYM_Desktop_app.Database
             }
         }
 
-        // Add sessions (renewal / top-up)
-        public static void AddSessions(int memberID, int planID)
+        // Add sessions (renewal / top-up). Returns the member's new remaining count (-1 if plan missing).
+        public static int AddSessions(int memberID, int planID)
         {
             var plan = GetPlanById(planID);
-            if (plan == null) return;
+            if (plan == null) return -1;
             using (var conn = GetConnection())
             {
                 conn.Open();
@@ -689,6 +689,12 @@ namespace GYM_Desktop_app.Database
                     cmd.Parameters.AddWithValue("@s", plan.Sessions);
                     cmd.Parameters.AddWithValue("@id", memberID);
                     cmd.ExecuteNonQuery();
+                }
+                using (var cmd = new SQLiteCommand("SELECT SessionsRemaining FROM Members WHERE MemberID=@id", conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", memberID);
+                    var v = cmd.ExecuteScalar();
+                    return (v == null || v == DBNull.Value) ? 0 : Convert.ToInt32(v);
                 }
             }
         }

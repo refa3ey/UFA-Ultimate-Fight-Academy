@@ -22,33 +22,77 @@ namespace GYM_Desktop_app.Forms
         private List<Member> _allMembers = new List<Member>();
 
         private Guna.UI2.WinForms.Guna2Button btnUseSession;
+        private Guna.UI2.WinForms.Guna2Button btnRenew;
 
         public ManageMembers()
         {
             InitializeComponent();
-            SetupUseSessionButton();
+            SetupSessionButtons();
             LoadPlans();
             LoadMembers();
         }
 
-        // Staff action: mark one training session as used for the selected member
-        private void SetupUseSessionButton()
+        // Staff actions on the selected member: use a session, or renew (refill sessions)
+        private void SetupSessionButtons()
         {
+            var parent = btnClear?.Parent ?? (Control)this;
+
             btnUseSession = new Guna.UI2.WinForms.Guna2Button
+            {
+                BorderRadius = 8,
+                FillColor    = Color.FromArgb(60, 60, 60),
+                ForeColor    = Color.White,
+                Font         = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Text         = "  Use a Session (-1)",
+                TextAlign    = HorizontalAlignment.Left,
+                Size         = new Size(200, 40),
+                Location     = new Point(20, 220)
+            };
+            btnUseSession.Click += BtnUseSession_Click;
+
+            btnRenew = new Guna.UI2.WinForms.Guna2Button
             {
                 BorderRadius = 8,
                 FillColor    = Color.FromArgb(242, 101, 34),
                 ForeColor    = Color.White,
                 Font         = new Font("Segoe UI", 10F, FontStyle.Bold),
-                Text         = "  Use Session",
+                Text         = "  Renew Plan (refill sessions)",
                 TextAlign    = HorizontalAlignment.Left,
-                Size         = new Size(148, 40),
-                Location     = new Point(660, 165)
+                Size         = new Size(255, 40),
+                Location     = new Point(235, 220)
             };
-            btnUseSession.Click += BtnUseSession_Click;
-            if (btnClear?.Parent != null) btnClear.Parent.Controls.Add(btnUseSession);
-            else this.Controls.Add(btnUseSession);
+            btnRenew.Click += BtnRenew_Click;
+
+            parent.Controls.Add(btnUseSession);
+            parent.Controls.Add(btnRenew);
             btnUseSession.BringToFront();
+            btnRenew.BringToFront();
+        }
+
+        private void BtnRenew_Click(object sender, EventArgs e)
+        {
+            if (selectedMemberID == 0)
+            {
+                MessageBox.Show("Select a member from the table first.");
+                return;
+            }
+            var plan = cmbPlan.SelectedItem as MembershipPlan;
+            if (plan == null)
+            {
+                MessageBox.Show("Choose the plan to renew with (in the Plan dropdown).");
+                return;
+            }
+            if (MessageBox.Show(
+                    $"Renew this member with \"{plan.PlanName}\"  (+{plan.Sessions} sessions)?",
+                    "Renew Plan", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return;
+
+            int newRemaining = DatabaseHelper.AddSessions(selectedMemberID, plan.PlanID);
+            MessageBox.Show(newRemaining >= 0
+                    ? $"Renewed. This member now has {newRemaining} session(s)."
+                    : "Could not renew (plan not found).",
+                "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            LoadMembers();
         }
 
         private void BtnUseSession_Click(object sender, EventArgs e)
