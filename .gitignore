@@ -1,0 +1,14 @@
+# Build output
+bin/
+obj/
+Output/
+publish/
+
+# NuGet
+packages/
+nuget.exe
+
+# VS
+.vs/
+*.user
+*.suo

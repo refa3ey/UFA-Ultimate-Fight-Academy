@@ -1,0 +1,40 @@
+GYM PRO - Gym Management System
+================================
+Version 1.0.0  |  Copyright (c) 2026 GYM PRO
+
+SYSTEM REQUIREMENTS
+-------------------
+- Windows 7 / 8.1 / 10 / 11 (64-bit recommended)
+- .NET Framework 4.8 (download free from microsoft.com if prompted)
+- SQL Server LocalDB 2019 or later
+  Download: https://aka.ms/sqllocaldb
+
+  LocalDB ships with:
+    - SQL Server Express (free): https://aka.ms/sqlexpress
+    - Visual Studio (any edition)
+
+INSTALLATION
+------------
+1. Run GYMPRO-Setup-v1.0.exe as Administrator
+2. Follow the on-screen wizard
+3. Accept the license agreement
+4. Choose your installation folder (default: C:\Program Files\GYM PRO\)
+5. Click Install and wait for completion
+6. Click Finish — GYM PRO launches automatically
+
+FIRST LOGIN
+-----------
+Default administrator credentials:
+  Username : admin
+  Password : admin123
+
+IMPORTANT: Change the admin password immediately after first login.
+
+UNINSTALLATION
+--------------
+Go to Settings > Apps (or Control Panel > Programs) and remove "GYM PRO",
+or run the uninstaller from the Start Menu folder.
+
+SUPPORT
+-------
+For issues or feedback, contact your system administrator.
