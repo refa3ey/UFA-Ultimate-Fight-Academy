@@ -44,6 +44,11 @@ namespace GYM_Desktop_app.Forms
             InitializeComponent();
             _currentUser    = user;
             lblWelcome.Text = $"Welcome, {user.Username}!";
+            AddNavButton("  Products", 405, (s, e) => new ProductsForm().ShowDialog());
+            AddNavButton("  Deleted Records", 465, (s, e) => new DeletedRecordsForm().ShowDialog());
+            btnChangePassword.Top = 525;
+            AddSessionButton("Free First Session", 600, Theme.Success, true);
+            AddSessionButton("Pay One Session", 660, Theme.Primary, false);
         }
 
         private void AdminDashboard_Load(object sender, EventArgs e)
@@ -53,6 +58,46 @@ namespace GYM_Desktop_app.Forms
             InitCharts();
             RefreshAll();
             timerRefresh.Start();
+        }
+
+        private void AddSessionButton(string text, int top, Color fill, bool isFree)
+        {
+            var btn = new Guna.UI2.WinForms.Guna2Button
+            {
+                Text         = text,
+                BorderRadius = 8,
+                FillColor    = fill,
+                Font         = btnReports.Font,
+                ForeColor    = Color.White,
+                Location     = new Point(btnReports.Left, top),
+                Size         = btnReports.Size
+            };
+            btn.Click += (s, e) =>
+            {
+                new SingleSessionForm(isFree).ShowDialog(this);
+                RefreshAll();
+            };
+            panelSidebar.Controls.Add(btn);
+        }
+
+        // A sidebar button matching the existing ones.
+        private void AddNavButton(string text, int top, EventHandler onClick)
+        {
+            var btn = new Guna.UI2.WinForms.Guna2Button
+            {
+                Text         = text,
+                BorderRadius = btnReports.BorderRadius,
+                FillColor    = btnReports.FillColor,
+                Font         = btnReports.Font,
+                ForeColor    = btnReports.ForeColor,
+                TextAlign    = btnReports.TextAlign,
+                Cursor       = btnReports.Cursor,
+                Location     = new Point(btnReports.Left, top),
+                Size         = btnReports.Size
+            };
+            btn.HoverState.FillColor = btnReports.HoverState.FillColor;
+            btn.Click += onClick;
+            panelSidebar.Controls.Add(btn);
         }
 
         // ── Chart initialisation ──────────────────────────────────────────────

@@ -124,8 +124,10 @@ namespace GYM_Desktop_app.Forms
             this.cmbFilter.Items.AddRange(new object[] {
                 "All Members",
                 "Active",
-                "Expired",
-                "Expiring Soon (7 days)"});
+                "Expired (period over)",
+                "Expiring Soon",
+                "Out of Sessions",
+                "Low Sessions (<=2)"});
             this.cmbFilter.Location = new System.Drawing.Point(422, 12);
             this.cmbFilter.Name = "cmbFilter";
             this.cmbFilter.Size = new System.Drawing.Size(200, 40);

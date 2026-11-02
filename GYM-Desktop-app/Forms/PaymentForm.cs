@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Drawing.Printing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GYM_Desktop_app.Database;
@@ -132,29 +133,32 @@ namespace GYM_Desktop_app.Forms
 
                 var selectedMember = (Member)cmbMember.SelectedItem;
                 DatabaseHelper.AddPayment(payment);
+
+                string planResult = DatabaseHelper.ApplyPlanPayment(payment.MemberID, selectedPlan);
                 dtpDate.Value = DateTime.Now;
 
-                var result = MessageBox.Show(
+                // Cleared so the page is ready for the next payment, and pressing Save
+                // again can't record the same payment twice.
+                cmbMember.SelectedIndex = -1;
+
+                var result = MessageBox.Show(this,
                     $"{selectedMember.Name} paid {selectedPlan.Price:0} EGP for " +
-                    $"{selectedPlan.PlanName} (Coach {selectedPlan.CoachName}).\n\nPrint a receipt now?",
+                    $"{selectedPlan.PlanName} (Coach {selectedPlan.CoachName}).\n\n{planResult}\n\nPrint a receipt now?",
                     "Payment Recorded", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
                 if (result == DialogResult.Yes)
                 {
-                    string pdfPath = ExportDialog.PromptForPDFPath(
-                        $"Receipt_{selectedMember.Name.Replace(" ", "_")}_{payment.Date:yyyyMMdd}.pdf");
-                    if (pdfPath != null)
+                    string planLine = $"{selectedPlan.PlanName}  -  {selectedPlan.CoachName}";
+                    try
                     {
-                        try
-                        {
-                            string planLine = $"{selectedPlan.PlanName}  —  Coach {selectedPlan.CoachName}";
-                            ExportHelper.ExportPaymentReceiptToPDF(pdfPath, payment, selectedMember.Name, planLine);
-                            ExportHelper.OpenFile(pdfPath);
-                        }
-                        catch (Exception pdfEx)
-                        {
-                            MessageBox.Show("Could not generate receipt: " + pdfEx.Message,
-                                "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        }
+                        if (PrinterSettings.InstalledPrinters.Count > 0)
+                            PrintReceipt(payment, selectedMember.Name, planLine);
+                        else
+                            SaveReceiptAsPdf(payment, selectedMember.Name, planLine);
+                    }
+                    catch (Exception printEx)
+                    {
+                        MessageBox.Show(this, "Could not print the receipt: " + printEx.Message,
+                            "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                 }
             }
@@ -162,6 +166,58 @@ namespace GYM_Desktop_app.Forms
             {
                 MessageBox.Show("Error: " + ex.Message);
             }
+        }
+
+        private void PrintReceipt(Payment payment, string memberName, string planLine)
+        {
+            using (var document = BuildReceipt(payment, memberName, planLine))
+            using (var dialog = new PrintDialog { Document = document, UseEXDialog = true })
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                    document.Print();
+        }
+
+        // For a PC with no printer installed.
+        private void SaveReceiptAsPdf(Payment payment, string memberName, string planLine)
+        {
+            string path = ExportDialog.PromptForPDFPath(
+                $"Receipt_{memberName.Replace(" ", "_")}_{payment.Date:yyyyMMdd}.pdf");
+            if (path == null) return;
+            ExportHelper.ExportPaymentReceiptToPDF(path, payment, memberName, planLine);
+            ExportHelper.OpenFile(path);
+        }
+
+        private static PrintDocument BuildReceipt(Payment payment, string memberName, string planLine)
+        {
+            var document = new PrintDocument { DocumentName = "UFA Receipt" };
+            document.PrintPage += (s, e) =>
+            {
+                using (var title = new Font("Segoe UI", 20F, FontStyle.Bold))
+                using (var heading = new Font("Segoe UI", 12F, FontStyle.Bold))
+                using (var text = new Font("Segoe UI", 12F))
+                {
+                    float left = e.MarginBounds.Left, y = e.MarginBounds.Top;
+                    e.Graphics.DrawString("Ultimate Fight Academy", title, Brushes.Black, left, y);
+                    y += 45;
+                    e.Graphics.DrawString("Payment Receipt", heading, Brushes.Black, left, y);
+                    y += 40;
+                    e.Graphics.DrawLine(Pens.Black, left, y, e.MarginBounds.Right, y);
+                    y += 15;
+                    foreach (var (label, value) in new[]
+                    {
+                        ("Member", memberName),
+                        ("Plan / Coach", planLine),
+                        ("Amount", $"{payment.Amount:N0} EGP"),
+                        ("Date", payment.Date.ToString("MMM dd, yyyy")),
+                        ("Paid by", payment.Method)
+                    })
+                    {
+                        e.Graphics.DrawString(label, heading, Brushes.Black, left, y);
+                        e.Graphics.DrawString(value, text, Brushes.Black, left + 150, y);
+                        y += 32;
+                    }
+                }
+            };
+            return document;
         }
     }
 }

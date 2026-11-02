@@ -123,7 +123,7 @@ namespace GYM_Desktop_app.Forms
                 try
                 {
                     DatabaseHelper.DeleteTrainer(selectedTrainerID);
-                    MessageBox.Show("Trainer deleted.");
+                    MessageBox.Show("Coach deleted.\n\nYou can bring them back from Deleted Records.");
                     LoadTrainers();
                     ClearFields();
                 }

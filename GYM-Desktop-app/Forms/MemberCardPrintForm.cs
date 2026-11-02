@@ -99,9 +99,14 @@ namespace GYM_Desktop_app.Forms
                     g.DrawString($"Sessions left: {m.SessionsRemaining} / {m.SessionsTotal}", f,
                         new SolidBrush(Color.FromArgb(60, 60, 60)), rx, 170);
 
+                if (m.PlanExpiry != default(DateTime))
+                    using (var f = new Font("Segoe UI", 11))
+                        g.DrawString($"Valid until: {m.PlanExpiry:MMM dd, yyyy}", f,
+                            new SolidBrush(Color.FromArgb(120, 120, 120)), rx, 196);
+
                 using (var f = new Font("Courier New", 15, FontStyle.Bold))
                     g.DrawString($"MBR-{m.MemberID:D5}", f,
-                        new SolidBrush(Color.FromArgb(26, 26, 26)), rx, 208);
+                        new SolidBrush(Color.FromArgb(26, 26, 26)), rx, 222);
 
                 // Decorative accent line
                 using (var pen = new Pen(Color.FromArgb(242, 101, 34), 2))

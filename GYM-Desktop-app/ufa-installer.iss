@@ -1,12 +1,12 @@
 ; ============================================================
 ;  Ultimate Fight Academy (UFA)  -  Inno Setup 6 Installer
-;  Output : Output\UFA-Setup-v1.0.exe
+;  Output : Output\UFA-Setup-v1.8.exe
 ;  Embedded SQLite - NO SQL Server / LocalDB required.
 ; ============================================================
 
 #define AppName      "Ultimate Fight Academy"
 #define AppShort     "UFA"
-#define AppVersion   "1.0.0"
+#define AppVersion   "1.8.0"
 #define AppPublisher "Ultimate Fight Academy"
 #define AppExeName   "UFA.exe"
 #define SourceDir    "bin\Release"
@@ -20,7 +20,7 @@ AppCopyright=Copyright (C) 2026 {#AppName}
 DefaultDirName={autopf}\{#AppShort}
 DefaultGroupName={#AppShort}
 OutputDir=Output
-OutputBaseFilename=UFA-Setup-v1.0
+OutputBaseFilename=UFA-Setup-v1.8
 SetupIconFile=Resources\app.ico
 Compression=lzma2/ultra
 SolidCompression=yes

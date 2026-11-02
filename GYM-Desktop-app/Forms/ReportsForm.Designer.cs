@@ -17,6 +17,8 @@ namespace GYM_Desktop_app.Forms
             this.panelTopBar = new Guna.UI2.WinForms.Guna2Panel();
             this.lblTitle = new System.Windows.Forms.Label();
             this.btnClose = new Guna.UI2.WinForms.Guna2Button();
+            this.txtSearch = new Guna.UI2.WinForms.Guna2TextBox();
+            this.btnAllCoaches = new Guna.UI2.WinForms.Guna2Button();
             this.dgvReport = new System.Windows.Forms.DataGridView();
             this.panelSummary = new Guna.UI2.WinForms.Guna2Panel();
             this.lblTotalPayments = new System.Windows.Forms.Label();
@@ -65,6 +67,32 @@ namespace GYM_Desktop_app.Forms
             this.btnClose.Text = "✕";
             this.btnClose.Click += new System.EventHandler(this.btnClose_Click);
             // 
+            // txtSearch
+            //
+            this.txtSearch.BorderRadius = 8;
+            this.txtSearch.DefaultText = "";
+            this.txtSearch.FocusedState.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(242)))), ((int)(((byte)(101)))), ((int)(((byte)(34)))));
+            this.txtSearch.Font = new System.Drawing.Font("Segoe UI", 11F);
+            this.txtSearch.Location = new System.Drawing.Point(10, 65);
+            this.txtSearch.Name = "txtSearch";
+            this.txtSearch.PlaceholderText = "Search by coach name...";
+            this.txtSearch.Size = new System.Drawing.Size(400, 40);
+            this.txtSearch.TabIndex = 3;
+            this.txtSearch.TextChanged += new System.EventHandler(this.txtSearch_TextChanged);
+            //
+            // btnAllCoaches
+            //
+            this.btnAllCoaches.BorderRadius = 8;
+            this.btnAllCoaches.FillColor = System.Drawing.Color.FromArgb(((int)(((byte)(242)))), ((int)(((byte)(101)))), ((int)(((byte)(34)))));
+            this.btnAllCoaches.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            this.btnAllCoaches.ForeColor = System.Drawing.Color.White;
+            this.btnAllCoaches.Location = new System.Drawing.Point(420, 65);
+            this.btnAllCoaches.Name = "btnAllCoaches";
+            this.btnAllCoaches.Size = new System.Drawing.Size(140, 40);
+            this.btnAllCoaches.TabIndex = 4;
+            this.btnAllCoaches.Text = "Coaches";
+            this.btnAllCoaches.Click += new System.EventHandler(this.btnAllCoaches_Click);
+            //
             // dgvReport
             // 
             this.dgvReport.AllowUserToAddRows = false;
@@ -73,14 +101,15 @@ namespace GYM_Desktop_app.Forms
             this.dgvReport.ColumnHeadersHeight = 29;
             this.dgvReport.EnableHeadersVisualStyles = false;
             this.dgvReport.GridColor = System.Drawing.Color.FromArgb(((int)(((byte)(230)))), ((int)(((byte)(230)))), ((int)(((byte)(230)))));
-            this.dgvReport.Location = new System.Drawing.Point(10, 68);
+            this.dgvReport.Location = new System.Drawing.Point(10, 115);
             this.dgvReport.Name = "dgvReport";
             this.dgvReport.ReadOnly = true;
             this.dgvReport.RowHeadersVisible = false;
             this.dgvReport.RowHeadersWidth = 51;
             this.dgvReport.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dgvReport.Size = new System.Drawing.Size(900, 400);
+            this.dgvReport.Size = new System.Drawing.Size(900, 355);
             this.dgvReport.TabIndex = 1;
+            this.dgvReport.CellFormatting += new System.Windows.Forms.DataGridViewCellFormattingEventHandler(this.dgvReport_CellFormatting);
             // 
             // panelSummary
             // 
@@ -149,6 +178,8 @@ namespace GYM_Desktop_app.Forms
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(245)))), ((int)(((byte)(247)))), ((int)(((byte)(250)))));
             this.ClientSize = new System.Drawing.Size(920, 630);
             this.Controls.Add(this.panelTopBar);
+            this.Controls.Add(this.txtSearch);
+            this.Controls.Add(this.btnAllCoaches);
             this.Controls.Add(this.dgvReport);
             this.Controls.Add(this.panelSummary);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
@@ -169,6 +200,8 @@ namespace GYM_Desktop_app.Forms
         private Guna.UI2.WinForms.Guna2Panel    panelTopBar;
         private System.Windows.Forms.Label      lblTitle;
         private Guna.UI2.WinForms.Guna2Button   btnClose;
+        private Guna.UI2.WinForms.Guna2TextBox  txtSearch;
+        private Guna.UI2.WinForms.Guna2Button   btnAllCoaches;
         private System.Windows.Forms.DataGridView dgvReport;
         private Guna.UI2.WinForms.Guna2Panel    panelSummary;
         private System.Windows.Forms.Label      lblTotalPayments;

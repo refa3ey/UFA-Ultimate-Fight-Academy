@@ -82,15 +82,56 @@ namespace GYM_Desktop_app.Forms
                 MessageBox.Show("Choose the plan to renew with (in the Plan dropdown).");
                 return;
             }
-            if (MessageBox.Show(
-                    $"Renew this member with \"{plan.PlanName}\"  (+{plan.Sessions} sessions)?",
-                    "Renew Plan", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+            // Spell out what the renewal will actually do - each case differs.
+            // Only the plan with this coach is touched.
+            var current = DatabaseHelper.GetMemberPlanFor(selectedMemberID, plan.CoachID);
+            bool monthIsOver = current == null || current.IsExpired;
+            int leftover = current?.SessionsRemaining ?? 0;
+
+            string prompt =
+                $"Renew this member with \"{plan.PlanName}\" from {plan.CoachName}  ({plan.Sessions} sessions)?\n\n";
+
+            if (current == null)
+            {
+                prompt += $"They have no plan with {plan.CoachName}, so this adds a new one for {plan.Duration.Label.ToLower()}:\n"
+                        + $"  •  {plan.Sessions} sessions\n"
+                        + $"  •  Valid until {DatabaseHelper.ComputeExpiry(DateTime.Now, plan):MMM dd, yyyy}\n";
+            }
+            else if (monthIsOver)
+            {
+                prompt += $"Their plan has finished, so this starts a NEW {plan.Duration.Label.ToLower()}:\n"
+                        + $"  •  Sessions reset to {plan.Sessions}\n"
+                        + $"  •  Valid until {DatabaseHelper.ComputeExpiry(DateTime.Now, plan):MMM dd, yyyy}\n";
+                if (leftover > 0)
+                    prompt += $"\nWARNING: {leftover} unused session(s) from the finished plan will be LOST.";
+            }
+            else
+            {
+                prompt += $"Their plan is still running, so this tops them up by {plan.Duration.Label.ToLower()}:\n"
+                        + $"  •  Sessions {leftover}  ->  {leftover + plan.Sessions}\n"
+                        + $"  •  Valid until {plan.Duration.AddTo(current.PlanExpiry):MMM dd, yyyy}\n";
+            }
+
+            prompt += "\n\nSaving a payment on the Payment page already renews the plan. "
+                    + "If this member just paid there, choose No.";
+
+            if (MessageBox.Show(prompt, "Renew Plan",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
                 return;
 
-            int newRemaining = DatabaseHelper.AddSessions(selectedMemberID, plan.PlanID);
-            MessageBox.Show(newRemaining >= 0
-                    ? $"Renewed. This member now has {newRemaining} session(s)."
-                    : "Could not renew (plan not found).",
+            int newRemaining = DatabaseHelper.RenewPlan(
+                selectedMemberID, plan.PlanID, out bool wasReset, out DateTime newExpiry);
+
+            if (newRemaining < 0)
+            {
+                MessageBox.Show("Could not renew (member or plan not found).",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            MessageBox.Show(
+                $"Renewed.\n\nSessions: {newRemaining}\nValid until: {newExpiry:MMM dd, yyyy}"
+                + (wasReset ? $"\n\n({leftover} unused session(s) from the finished plan were dropped.)" : ""),
                 "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
             LoadMembers();
         }
@@ -102,19 +143,51 @@ namespace GYM_Desktop_app.Forms
                 MessageBox.Show("Select a member from the table first.");
                 return;
             }
-            if (!DatabaseHelper.HasSessionsLeft(selectedMemberID))
+            if (_selectedMember == null || _selectedMember.MemberPlanID == 0)
+            {
+                MessageBox.Show("This person has no plan. Use Pay One Session on the dashboard, or subscribe them to a plan.",
+                    "No Plan", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            // The row you clicked decides which coach the session comes off.
+            var m = DatabaseHelper.GetMemberPlanRow(_selectedMember.MemberPlanID);
+            if (m == null)
+            {
+                MessageBox.Show("Plan not found. Refresh and try again.");
+                return;
+            }
+            if (m.IsExpired)
+            {
+                MessageBox.Show(
+                    $"This member's plan expired on {m.PlanExpiry:MMM dd, yyyy}"
+                    + (m.SessionsRemaining > 0
+                        ? $" with {m.SessionsRemaining} session(s) unused.\n\nThe plan period is over, so those sessions no longer count."
+                        : ".")
+                    + "\n\nRenew their plan to start a new period.",
+                    "Plan Expired", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (m.SessionsRemaining <= 0)
             {
                 MessageBox.Show("This member has no sessions left. Renew their plan first.",
                     "No Sessions", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            if (MessageBox.Show("Mark one session as used for this member?", "Use Session",
+            if (MessageBox.Show(
+                    $"Mark one session with {m.CoachName ?? "this coach"} as used for {m.Name}?\n\n"
+                    + $"{m.PlanName}: {m.SessionsRemaining} left  ->  {m.SessionsRemaining - 1} left", "Use Session",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
-            int remaining = DatabaseHelper.UseSession(selectedMemberID);
-            MessageBox.Show(remaining >= 0
-                    ? $"Session recorded. {remaining} session(s) left."
-                    : "No sessions left.",
+            int remaining = DatabaseHelper.UseSession(m.MemberPlanID, out string error);
+            if (error != null)
+            {
+                MessageBox.Show(error, "Cannot Use Session",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                LoadMembers();
+                return;
+            }
+            MessageBox.Show(
+                $"Session recorded with {m.CoachName ?? "this coach"}. {remaining} session(s) left, valid until {m.PlanExpiry:MMM dd, yyyy}.",
                 "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
             LoadMembers();
         }
@@ -186,7 +259,7 @@ namespace GYM_Desktop_app.Forms
         {
             try
             {
-                _allMembers = DatabaseHelper.GetAllMembers();
+                _allMembers = DatabaseHelper.GetMemberPlanRows();
                 ApplyFilters();
             }
             catch (Exception ex)
@@ -211,14 +284,21 @@ namespace GYM_Desktop_app.Forms
 
             switch (cmbFilter.SelectedIndex)
             {
-                case 1: // Active (has sessions left)
-                    filtered = filtered.Where(m => m.SessionsRemaining > 0);
+                case 1: // Active - month still running AND sessions left
+                    filtered = filtered.Where(m => m.CanTrain);
                     break;
-                case 2: // Finished (no sessions left)
-                    filtered = filtered.Where(m => m.SessionsRemaining <= 0);
+                case 2: // Expired - the month is over
+                    filtered = filtered.Where(m => m.IsExpired);
                     break;
-                case 3: // Low sessions
-                    filtered = filtered.Where(m => m.SessionsRemaining > 0 &&
+                case 3: // Expiring soon - near the end of the plan's own period
+                    filtered = filtered.Where(m => m.IsExpiringSoon);
+                    break;
+                case 4: // Out of sessions, but the period has not ended yet
+                    filtered = filtered.Where(m => m.PlanID > 0 && !m.IsExpired && m.SessionsRemaining <= 0);
+                    break;
+                case 5: // Low sessions
+                    filtered = filtered.Where(m => !m.IsExpired &&
+                                                   m.SessionsRemaining > 0 &&
                                                    m.SessionsRemaining <= 2);
                     break;
             }
@@ -226,7 +306,8 @@ namespace GYM_Desktop_app.Forms
             var list = filtered.ToList();
             dgvMembers.DataSource = null;
             dgvMembers.DataSource = list;
-            lblResultCount.Text = $"Showing {list.Count} of {_allMembers.Count} members";
+            lblResultCount.Text = $"Showing {list.Select(m => m.MemberID).Distinct().Count()} of "
+                                + $"{_allMembers.Select(m => m.MemberID).Distinct().Count()} members";
         }
 
         private void txtSearch_TextChanged(object sender, EventArgs e) => ApplyFilters();
@@ -244,9 +325,22 @@ namespace GYM_Desktop_app.Forms
 
             var m = list[e.RowIndex];
 
-            if (m.SessionsRemaining <= 0)
+            // Walk-ins have no plan: no colour, and a blank expiry date.
+            if (m.PlanID == 0)
+            {
+                if (dgvMembers.Columns[e.ColumnIndex].Name == "PlanExpiry")
+                {
+                    e.Value = "";
+                    e.FormattingApplied = true;
+                }
+                return;
+            }
+
+            // Red = cannot train (month over, or out of sessions).
+            // Yellow = still usable but running out of days or sessions.
+            if (m.IsExpired || m.SessionsRemaining <= 0)
                 e.CellStyle.BackColor = Color.FromArgb(255, 230, 230);
-            else if (m.SessionsRemaining <= 2)
+            else if (m.IsExpiringSoon || m.SessionsRemaining <= 2)
                 e.CellStyle.BackColor = Color.FromArgb(255, 248, 220);
         }
 
@@ -255,30 +349,42 @@ namespace GYM_Desktop_app.Forms
         {
             if (dgvMembers.Columns.Count == 0) return;
 
-            foreach (var col in new[] { "UserID", "CoachID", "PlanID" })
+            foreach (var col in new[] { "UserID", "CoachID", "PlanID", "PlanStart",
+                                        "IsExpired", "CanTrain", "IsExpiringSoon", "ExpiryWarningDays" })
                 if (dgvMembers.Columns.Contains(col))
                     dgvMembers.Columns[col].Visible = false;
 
             var headers = new Dictionary<string, string>
             {
-                { "MemberID",          "ID"      },
-                { "Name",              "Name"    },
-                { "Phone",             "Phone"   },
-                { "Age",               "Age"     },
-                { "Address",           "Address" },
-                { "JoinDate",          "Joined"  },
-                { "CoachName",         "Coach"   },
-                { "PlanName",          "Plan"    },
-                { "SessionsTotal",     "Total"   },
-                { "SessionsRemaining", "Left"    }
+                { "MemberID",          "ID"        },
+                { "Name",              "Name"      },
+                { "Phone",             "Phone"     },
+                { "Age",               "Age"       },
+                { "Address",           "Address"   },
+                { "JoinDate",          "Joined"    },
+                { "CoachName",         "Coach"     },
+                { "PlanName",          "Plan"      },
+                { "SessionsTotal",     "Total"     },
+                { "SessionsRemaining", "Left"      },
+                { "PlanExpiry",        "Expires"   },
+                { "DaysLeft",          "Days Left" },
+                { "Status",            "Status"    }
             };
 
             foreach (var kv in headers)
                 if (dgvMembers.Columns.Contains(kv.Key))
                     dgvMembers.Columns[kv.Key].HeaderText = kv.Value;
 
-            if (dgvMembers.Columns.Contains("JoinDate"))
-                dgvMembers.Columns["JoinDate"].DefaultCellStyle.Format = "MMM dd, yyyy";
+            foreach (var col in new[] { "JoinDate", "PlanExpiry" })
+                if (dgvMembers.Columns.Contains(col))
+                    dgvMembers.Columns[col].DefaultCellStyle.Format = "MMM dd, yyyy";
+
+            // A member's plans read left to right next to their name.
+            int position = 0;
+            foreach (var col in new[] { "MemberID", "Name", "CoachName", "PlanName", "SessionsRemaining",
+                                        "SessionsTotal", "PlanExpiry", "Status" })
+                if (dgvMembers.Columns.Contains(col))
+                    dgvMembers.Columns[col].DisplayIndex = position++;
         }
 
         // ===== CRUD HANDLERS =====
@@ -338,28 +444,47 @@ namespace GYM_Desktop_app.Forms
                 return;
             }
 
-            if (!ValidateInputs()) return;
+            bool walkIn = _selectedMember != null && _selectedMember.PlanID == 0;
+            if (!ValidateInputs(planRequired: false)) return;
 
             try
             {
-                var selectedPlan = (MembershipPlan)cmbPlan.SelectedItem;
-                int remaining = _selectedMember != null ? _selectedMember.SessionsRemaining : selectedPlan.Sessions;
+                var selectedPlan = cmbPlan.SelectedItem as MembershipPlan;
                 var member = new Member
                 {
                     MemberID          = selectedMemberID,
                     Name              = txtName.Text.Trim(),
                     Phone             = txtPhone.Text.Trim(),
                     Age               = (int)numAge.Value,
-                    Address           = txtAddress.Text.Trim(),
-                    CoachID           = selectedPlan.CoachID,
-                    PlanID            = selectedPlan.PlanID,
-                    SessionsTotal     = selectedPlan.Sessions,
-                    SessionsRemaining = remaining
+                    Address           = txtAddress.Text.Trim()
                 };
 
+                // Choosing a different plan on a row changes that plan only.
+                bool planChanged = !walkIn && _selectedMember != null && selectedPlan != null
+                                   && selectedPlan.PlanID != _selectedMember.PlanID;
+                if (planChanged && !DatabaseHelper.ChangeMemberPlan(_selectedMember.MemberPlanID, selectedMemberID, selectedPlan))
+                {
+                    MessageBox.Show($"This member already has a plan with {selectedPlan.CoachName}.\n\n"
+                                    + "Select that row instead, or record a payment for the new plan.",
+                        "Plan Not Changed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
                 DatabaseHelper.UpdateMember(member);
-                MessageBox.Show("Member updated successfully!", "Success",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // A walk-in with a plan chosen is subscribing: this starts the plan.
+                if (walkIn && selectedPlan != null)
+                {
+                    int sessions = DatabaseHelper.RenewPlan(
+                        selectedMemberID, selectedPlan.PlanID, out bool _, out DateTime expiry);
+                    MessageBox.Show(
+                        $"{member.Name} is now subscribed to {selectedPlan.PlanName}.\n\n"
+                        + $"Sessions: {sessions}\nValid until: {expiry:MMM dd, yyyy}",
+                        "Subscribed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                    MessageBox.Show("Member updated successfully!", "Success",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadMembers();
                 ClearFields();
             }
@@ -377,7 +502,7 @@ namespace GYM_Desktop_app.Forms
                 return;
             }
 
-            var result = MessageBox.Show("Are you sure you want to delete this member?",
+            var result = MessageBox.Show("Delete this member and ALL their plans?\n\nYou can bring them back from Deleted Records.",
                 "Confirm Delete", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
             if (result == DialogResult.Yes)
@@ -385,7 +510,7 @@ namespace GYM_Desktop_app.Forms
                 try
                 {
                     DatabaseHelper.DeleteMember(selectedMemberID);
-                    MessageBox.Show("Member deleted.");
+                    MessageBox.Show("Member deleted.\n\nYou can bring them back from Deleted Records.");
                     LoadMembers();
                     ClearFields();
                 }
@@ -406,7 +531,9 @@ namespace GYM_Desktop_app.Forms
                 selectedMemberID = Convert.ToInt32(row.Cells["MemberID"].Value);
                 txtName.Text     = row.Cells["Name"].Value.ToString();
                 txtPhone.Text    = row.Cells["Phone"].Value?.ToString() ?? "";
-                numAge.Value     = Convert.ToInt32(row.Cells["Age"].Value);
+                // Walk-ins have no age on file (0), which the box can't show.
+                int age          = Convert.ToInt32(row.Cells["Age"].Value);
+                numAge.Value     = age < numAge.Minimum ? 18 : Math.Min(age, numAge.Maximum);
                 txtAddress.Text  = row.Cells["Address"].Value?.ToString() ?? "";
 
                 int planID = Convert.ToInt32(row.Cells["PlanID"].Value);
@@ -414,9 +541,10 @@ namespace GYM_Desktop_app.Forms
                 var plan   = plans.FirstOrDefault(p => p.PlanID == planID);
                 if (plan != null)
                     cmbPlan.SelectedItem = plan;
+                else
+                    cmbPlan.SelectedIndex = -1;   // walk-in, or a plan that was deleted
 
-                _selectedMember = (dgvMembers.DataSource as List<Member>)
-                    ?.FirstOrDefault(m => m.MemberID == selectedMemberID);
+                _selectedMember = row.DataBoundItem as Member;
 
                 try
                 {
@@ -463,14 +591,14 @@ namespace GYM_Desktop_app.Forms
             }
         }
 
-        private bool ValidateInputs()
+        private bool ValidateInputs(bool planRequired = true)
         {
             if (string.IsNullOrWhiteSpace(txtName.Text))
             {
                 MessageBox.Show("Name is required.");
                 return false;
             }
-            if (cmbPlan.SelectedItem == null)
+            if (planRequired && cmbPlan.SelectedItem == null)
             {
                 MessageBox.Show("Please select a plan.");
                 return false;

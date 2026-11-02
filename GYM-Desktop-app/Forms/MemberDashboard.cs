@@ -63,15 +63,24 @@ namespace GYM_Desktop_app.Forms
 
                 string coach = string.IsNullOrEmpty(_member.CoachName) ? "" : _member.CoachName + "  •  ";
                 lblPlan.Text   = coach + (string.IsNullOrEmpty(_member.PlanName) ? "—" : _member.PlanName);
-                lblExpiry.Text = $"{_member.SessionsRemaining} / {_member.SessionsTotal} sessions left";
+                lblExpiry.Text = _member.PlanExpiry == default(DateTime)
+                    ? $"{_member.SessionsRemaining} / {_member.SessionsTotal} sessions left"
+                    : $"{_member.SessionsRemaining} / {_member.SessionsTotal} sessions  •  "
+                      + (_member.IsExpired
+                            ? $"expired {_member.PlanExpiry:MMM dd, yyyy}"
+                            : $"valid until {_member.PlanExpiry:MMM dd, yyyy}");
 
-                bool active    = _member.SessionsRemaining > 0;
-                lblStatus.Text      = active ? "Active" : "Finished";
-                lblStatus.ForeColor = active
-                    ? Color.FromArgb(40, 167, 69)
-                    : Color.FromArgb(220, 53, 69);
+                bool active  = _member.CanTrain;
+                bool warning = active && (_member.IsExpiringSoon || _member.SessionsRemaining <= 2);
 
-                btnSelfCheckIn.Text = $"Sessions remaining:  {_member.SessionsRemaining}";
+                lblStatus.Text      = _member.Status;
+                lblStatus.ForeColor = !active ? Color.FromArgb(220, 53, 69)   // red
+                                    : warning ? Color.FromArgb(242, 101, 34)  // orange
+                                    : Color.FromArgb(40, 167, 69);            // green
+
+                btnSelfCheckIn.Text = active
+                    ? $"Sessions remaining:  {_member.SessionsRemaining}"
+                    : "Renew your plan";
 
                 var qr = QRHelper.GenerateMemberQR(_member.MemberID);
                 picMyQR.Image      = qr;
@@ -116,11 +125,19 @@ namespace GYM_Desktop_app.Forms
         private void btnSelfCheckIn_Click(object sender, EventArgs e)
         {
             if (_member == null) return;
+            string plans = "";
+            foreach (var p in DatabaseHelper.GetMemberPlans(_member.MemberID))
+                plans += $"{p.CoachName ?? "-"}  -  {p.PlanName ?? "-"}\n"
+                       + $"Sessions remaining: {p.SessionsRemaining} of {p.SessionsTotal}\n"
+                       + (p.PlanExpiry == default(DateTime) ? "" :
+                            p.IsExpired
+                                ? $"Plan expired: {p.PlanExpiry:MMM dd, yyyy}  -  please renew\n"
+                                : $"Valid until: {p.PlanExpiry:MMM dd, yyyy}  ({p.DaysLeft} day(s) left)\n")
+                       + "\n";
             MessageBox.Show(
-                $"Coach: {(_member.CoachName ?? "-")}\n" +
-                $"Plan: {(_member.PlanName ?? "-")}\n\n" +
-                $"Sessions remaining: {_member.SessionsRemaining} of {_member.SessionsTotal}\n\n" +
-                "Sessions are recorded by the front desk when you train.",
+                plans +
+                "Sessions are recorded by the front desk when you train.\n" +
+                "Unused sessions do not carry over once the plan expires.",
                 "My Sessions", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 

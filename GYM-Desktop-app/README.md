@@ -9,8 +9,8 @@ A full-featured desktop application for managing gym memberships, attendance, pa
 | Module | Highlights |
 |--------|-----------|
 | **Authentication** | BCrypt-hashed passwords, admin & member roles, change-password flow |
-| **Member Management** | Add/edit/delete members, real-time search, status filter (Active / Expired / Expiring Soon), row colour coding |
-| **Membership Plans** | Create and manage plans with pricing and duration |
+| **Member Management** | Add/edit/delete members, real-time search, status filter (Active / Expired / Expiring Soon / Out of Sessions / Low Sessions), row colour coding |
+| **Session Plans** | Per-coach plans with their own session count, price and **validity period** (any number of weeks, months or years) chosen per plan. A member can hold one plan per coach, each with its own sessions and expiry. The period runs from the day a member buys or renews — once it ends the member must renew, and unused sessions do not carry over. |
 | **Payments** | Record payments, method breakdown, payment history per member |
 | **Attendance** | Check-in / check-out, attendance history, weekly stats |
 | **QR Code System** | Per-member QR cards, kiosk Check-In Station (fullscreen), print & save member cards |

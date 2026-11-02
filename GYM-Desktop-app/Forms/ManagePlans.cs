@@ -18,6 +18,9 @@ namespace GYM_Desktop_app.Forms
 
         private ComboBox cmbCoach;
         private Label lblCoach;
+        private NumericUpDown numLength;
+        private ComboBox cmbLengthUnit;
+        private Label lblDurationPicker;
 
         public ManagePlans()
         {
@@ -26,36 +29,80 @@ namespace GYM_Desktop_app.Forms
             LoadPlans();
         }
 
-        // Add a coach selector + relabel the reused fields for the MMA session model
+        // Add coach + duration selectors, and relabel the reused fields for the
+        // MMA session model. Row 1 of panelInputs runs:
+        //   PLAN NAME | COACH | SESSIONS | DURATION | PRICE
         private void SetupCoachUI()
         {
             lblTitle.Text     = "Manage Coach Plans";
-            lblDuration.Text  = "SESSIONS";
             lblPrice.Text     = "PRICE (EGP)";
+
+            // numDuration is the old months spinner, reused as the session count
+            lblDuration.Text    = "SESSIONS";
             numDuration.Maximum = 100;
             numDuration.Value   = 8;
-            txtPlanName.Size    = new Size(150, 38);
 
-            lblCoach = new Label
+            lblPlanName.Location = new Point(20, 15);
+            lblPlanName.Size     = new Size(140, 17);
+            txtPlanName.Location = new Point(20, 35);
+            txtPlanName.Size     = new Size(140, 38);
+
+            lblDuration.Location = new Point(330, 15);
+            lblDuration.Size     = new Size(90, 17);
+            numDuration.Location = new Point(330, 39);
+            numDuration.Size     = new Size(80, 30);
+
+            lblPrice.Location = new Point(580, 15);
+            lblPrice.Size     = new Size(200, 17);
+            numPrice.Location = new Point(580, 39);
+            numPrice.Size     = new Size(200, 30);
+
+            lblCoach = NewFieldLabel("COACH", 170, 150);
+            cmbCoach = NewFieldCombo(170, 150);
+
+            lblDurationPicker = NewFieldLabel("DURATION", 420, 150);
+            numLength = new NumericUpDown
             {
-                Text      = "COACH",
-                Font      = new Font("Segoe UI", 8F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(100, 100, 100),
-                Location  = new Point(185, 15),
-                Size      = new Size(160, 17)
+                Font     = new Font("Segoe UI", 10F),
+                Location = new Point(420, 39),
+                Size     = new Size(60, 30),
+                Minimum  = 1,
+                Maximum  = 999,
+                Value    = PlanDuration.Default.Value
             };
-            cmbCoach = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font          = new Font("Segoe UI", 10F),
-                Location      = new Point(185, 37),
-                Size          = new Size(165, 30)
-            };
+            cmbLengthUnit = NewFieldCombo(485, 85);
+            cmbLengthUnit.Items.AddRange(PlanDuration.Units);
+            cmbLengthUnit.SelectedItem = PlanDuration.Default.Unit;
+
             panelInputs.Controls.Add(lblCoach);
             panelInputs.Controls.Add(cmbCoach);
+            panelInputs.Controls.Add(lblDurationPicker);
+            panelInputs.Controls.Add(numLength);
+            panelInputs.Controls.Add(cmbLengthUnit);
 
             LoadCoaches();
         }
+
+        private Label NewFieldLabel(string text, int x, int width) => new Label
+        {
+            Text      = text,
+            Font      = new Font("Segoe UI", 8F, FontStyle.Bold),
+            ForeColor = Color.FromArgb(100, 100, 100),
+            Location  = new Point(x, 15),
+            Size      = new Size(width, 17)
+        };
+
+        private ComboBox NewFieldCombo(int x, int width) => new ComboBox
+        {
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Font          = new Font("Segoe UI", 10F),
+            Location      = new Point(x, 39),
+            Size          = new Size(width, 30)
+        };
+
+        // The duration the manager typed, e.g. 10 + Month or 1 + Year.
+        private PlanDuration SelectedDuration =>
+            new PlanDuration((int)numLength.Value, cmbLengthUnit.SelectedItem as string);
 
         private void LoadCoaches()
         {
@@ -120,9 +167,20 @@ namespace GYM_Desktop_app.Forms
             {
                 dgvPlans.DataSource = null;
                 dgvPlans.DataSource = DatabaseHelper.GetAllPlans();
-                if (dgvPlans.Columns.Contains("PlanID"))  dgvPlans.Columns["PlanID"].Visible  = false;
-                if (dgvPlans.Columns.Contains("CoachID")) dgvPlans.Columns["CoachID"].Visible = false;
-                if (dgvPlans.Columns.Contains("CoachName")) dgvPlans.Columns["CoachName"].HeaderText = "Coach";
+
+                // DurationValue/Unit stay bound (CellClick reads them) but are shown
+                // as the single readable "Duration" column instead. Label is the long
+                // dropdown caption - it only truncates here, so hide it too.
+                foreach (var col in new[] { "PlanID", "CoachID", "DurationValue", "DurationUnit", "Duration", "Label" })
+                    if (dgvPlans.Columns.Contains(col))
+                        dgvPlans.Columns[col].Visible = false;
+
+                if (dgvPlans.Columns.Contains("CoachName"))
+                    dgvPlans.Columns["CoachName"].HeaderText = "Coach";
+                if (dgvPlans.Columns.Contains("DurationLabel"))
+                    dgvPlans.Columns["DurationLabel"].HeaderText = "Duration";
+                if (dgvPlans.Columns.Contains("PlanName"))
+                    dgvPlans.Columns["PlanName"].HeaderText = "Plan";
             }
             catch (Exception ex)
             {
@@ -152,14 +210,19 @@ namespace GYM_Desktop_app.Forms
             if (!ValidateInput(out int coachID)) return;
             try
             {
+                var d = SelectedDuration;
                 DatabaseHelper.AddPlan(new MembershipPlan
                 {
-                    CoachID  = coachID,
-                    PlanName = txtPlanName.Text.Trim(),
-                    Sessions = (int)numDuration.Value,
-                    Price    = numPrice.Value
+                    CoachID       = coachID,
+                    PlanName      = txtPlanName.Text.Trim(),
+                    Sessions      = (int)numDuration.Value,
+                    Price         = numPrice.Value,
+                    DurationValue = d.Value,
+                    DurationUnit  = d.Unit
                 });
-                MessageBox.Show("Plan added!");
+                MessageBox.Show(
+                    $"Plan added.\n\n{(int)numDuration.Value} sessions, valid {d.Label.ToLower()} from the day a member buys it.",
+                    "Plan Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadPlans();
                 ClearFields();
             }
@@ -177,16 +240,22 @@ namespace GYM_Desktop_app.Forms
             if (!ValidateInput(out int coachID)) return;
             try
             {
+                var d = SelectedDuration;
                 DatabaseHelper.UpdatePlan(new MembershipPlan
                 {
-                    PlanID   = selectedPlanID,
-                    CoachID  = coachID,
-                    PlanName = txtPlanName.Text.Trim(),
-                    Sessions = (int)numDuration.Value,
-                    Price    = numPrice.Value
+                    PlanID        = selectedPlanID,
+                    CoachID       = coachID,
+                    PlanName      = txtPlanName.Text.Trim(),
+                    Sessions      = (int)numDuration.Value,
+                    Price         = numPrice.Value,
+                    DurationValue = d.Value,
+                    DurationUnit  = d.Unit
                 });
-                MessageBox.Show("Plan updated successfully!", "Success",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(
+                    "Plan updated successfully!\n\n"
+                    + "Members already on this plan keep the expiry date they were given - "
+                    + $"the new duration ({d.Label.ToLower()}) applies from their next renewal.",
+                    "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadPlans();
                 ClearFields();
             }
@@ -225,6 +294,12 @@ namespace GYM_Desktop_app.Forms
                 numPrice.Value   = Convert.ToDecimal(row.Cells["Price"].Value);
                 if (row.Cells["CoachID"].Value != null && row.Cells["CoachID"].Value != DBNull.Value)
                     cmbCoach.SelectedValue = Convert.ToInt32(row.Cells["CoachID"].Value);
+
+                var length = PlanDuration.From(
+                    Convert.ToInt32(row.Cells["DurationValue"].Value),
+                    row.Cells["DurationUnit"].Value?.ToString());
+                numLength.Value = Math.Min(length.Value, numLength.Maximum);
+                cmbLengthUnit.SelectedItem = length.Unit;
             }
         }
 
@@ -234,6 +309,8 @@ namespace GYM_Desktop_app.Forms
             txtPlanName.Clear();
             numDuration.Value = 8;
             numPrice.Value    = 0;
+            numLength.Value = PlanDuration.Default.Value;
+            cmbLengthUnit.SelectedItem = PlanDuration.Default.Unit;
         }
     }
 }
